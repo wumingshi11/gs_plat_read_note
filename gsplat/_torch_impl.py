@@ -133,11 +133,37 @@ def quat_to_rotmat(quat: Tensor) -> Tensor:
 
 
 def scale_rot_to_cov3d(scale: Tensor, glob_scale: float, quat: Tensor) -> Tensor:
+    """
+    Convert per-point axis scales and rotations into 3x3 covariance matrices.
+
+    The mathematical result is::
+
+        cov = R @ diag((glob_scale * scale)**2) @ R^T
+
+    Implementation note:
+    - `R` has shape `(..., 3, 3)` produced from the quaternion `quat`.
+    - `scale` has shape `(..., 3)` (sx, sy, sz). We form a column-scaled
+      matrix `M = R * (glob_scale * scale)[..., None, :]`, which performs
+      column-wise scaling of `R` (equivalent to `R @ diag(glob_scale*scale)`).
+    - Returning `M @ M.transpose(-1, -2)` yields the covariance `cov`.
+
+    Args:
+        scale: Tensor of shape `(..., 3)` giving per-axis scales.
+        glob_scale: scalar global scale applied to all axes.
+        quat: Tensor of shape `(..., 4)` rotation quaternions ([w,x,y,z]).
+
+    Returns:
+        Tensor `(..., 3, 3)` symmetric covariance matrices.
+
+    Note: only the upper-triangular part is needed for storage/IO in some
+    places (hence the TODO about saving upper-right), but this function
+    returns the full 3x3 covariance for clarity.
+    """
     assert scale.shape[-1] == 3, scale.shape
     assert quat.shape[-1] == 4, quat.shape
     assert scale.shape[:-1] == quat.shape[:-1], (scale.shape, quat.shape)
     R = quat_to_rotmat(quat)  # (..., 3, 3)
-    M = R * glob_scale * scale[..., None, :]  # (..., 3, 3)
+    M = R * glob_scale * scale[..., None, :]  # (..., 3, 3) column-scaled R
     # TODO: save upper right because symmetric
     return M @ M.transpose(-1, -2)  # (..., 3, 3)
 
@@ -168,10 +194,12 @@ def project_cov3d_ewa(
     t = torch.stack([x_clamp, y_clamp, t[..., 2]], dim=-1)
 
     O = torch.zeros_like(rz)
+    # J为 uv对t的雅可比矩阵，包含了投影过程中的非线性变换对cov3d的影响
     J = torch.stack(
         [fx * rz, O, -fx * t[..., 0] * rz2, O, fy * rz, -fy * t[..., 1] * rz2],
         dim=-1,
     ).reshape(*rz.shape, 2, 3)
+    # T 为 uv对mean3d的雅可比矩阵，包含了投影过程中的非线性变换对cov3d的影响
     T = torch.matmul(J, W)  # (..., 2, 3)
     cov2d = torch.einsum("...ij,...jk,...kl->...il", T, cov3d, T.transpose(-1, -2))
     # add a little blur along axes and (TODO save upper triangular elements)
