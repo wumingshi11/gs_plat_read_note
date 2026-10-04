@@ -120,3 +120,5 @@ venv.bak/
 *build
 compile_commands.json
 *.dump
+# Local scratch: kept only inside papers/, never as a duplicate tree.
+papers/_originals/
