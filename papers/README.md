@@ -85,8 +85,14 @@ papers/
 
 ## 五、维护
 
+在仓库根目录运行：
+
 ```bash
-python3 papers/build_catalog.py     # 从 PDF 实际内容重新生成 CATALOG.md 与 papers_index.tsv
+python3 papers/build_catalog.py                 # 从 PDF 实际内容重新生成 CATALOG.md 与 papers_index.tsv
+python3 organize_papers.py                      # 按内容标题把 PDF 归档到分类目录
+python3 shrink_papers.py --min-mb 30 --dry-run  # 看哪些 PDF 体积过大
+python3 shrink_papers.py --min-mb 30            # 压缩（150 DPI，原文件删除）
+python3 shrink_papers.py --restore              # 还原（仅对 --archive 压过的有效）
 ```
 
 `CATALOG.md` 与 `papers_index.tsv` 中的「首页标题」全部从 PDF 正文提取（而非文件名或 arXiv 元数据），可与 arXiv ID 交叉核对，避免出现编号与内容不符的情况。
