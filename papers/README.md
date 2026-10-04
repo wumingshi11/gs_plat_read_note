@@ -4,7 +4,7 @@
 
 ```
 papers/
-├── CATALOG.md          # 全部论文清单（自动从 PDF 内容生成）
+├── CATALOG.md          # 全部论文清单（自动从 PDF 内容生成，含页数/大小/首页标题）
 ├── papers_index.tsv    # 表格版（分类 / 页数 / 大小 / 首页标题）
 ├── build_catalog.py    # 重新生成上面两个文件
 ├── 01-核心论文/         # 原始论文 + gsplat 库论文 + 综述
@@ -89,4 +89,4 @@ papers/
 python3 papers/build_catalog.py     # 从 PDF 实际内容重新生成 CATALOG.md 与 papers_index.tsv
 ```
 
-`CATALOG.md` 与 `papers_index.tsv` 中的「首页标题」均从 PDF 正文提取，可与 arXiv ID 交叉核对，避免出现 ID 与内容不符的情况。
+`CATALOG.md` 与 `papers_index.tsv` 中的「首页标题」全部从 PDF 正文提取（而非文件名或 arXiv 元数据），可与 arXiv ID 交叉核对，避免出现编号与内容不符的情况。

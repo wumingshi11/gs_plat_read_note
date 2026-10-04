@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""Emit papers/../CATALOG.md and papers_index.tsv from the real content of every
-PDF (first-page text + page count), so the catalogue can never disagree with
-the files on disk."""
+"""Emit CATALOG.md and papers_index.tsv from the real content of every PDF
+(first-page text + page count), so the catalogue can never disagree with the
+files on disk.
+
+This script lives in papers/ and is meant to be run from the repo root:
+    python3 papers/build_catalog.py
+"""
 import glob
 import os
 import re
 import subprocess
 import unicodedata
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
-PAPERS = os.path.join(ROOT, "papers")
+OUT = os.path.dirname(os.path.abspath(__file__))
 
 NOTES = {
     "3dgs-original-Kerbl2023-SIGGRAPH": "原始论文, SIGGRAPH 2023 最佳论文。核心: 3D 高斯显式表示 + 可微 tile 光栅化 + 自适应密度控制。**公式推导在补充材料里** (见 02-公式推导)。",
@@ -69,7 +72,7 @@ def npages(path):
 
 def main():
     rows = []
-    for path in sorted(glob.glob(os.path.join(PAPERS, "*", "*.pdf"))):
+    for path in sorted(glob.glob(os.path.join(OUT, "*", "*.pdf"))):
         cat = os.path.basename(os.path.dirname(path))
         stem = os.path.splitext(os.path.basename(path))[0]
         if cat == FALLBACK_ORDER:
@@ -78,7 +81,7 @@ def main():
                      "pages": npages(path), "head": page_text(path)})
     rows.sort(key=lambda r: (ORDER.index(r["cat"]) if r["cat"] in ORDER else 99, r["stem"]))
 
-    with open(os.path.join(ROOT, "papers_index.tsv"), "w") as f:
+    with open(os.path.join(OUT, "papers_index.tsv"), "w") as f:
         f.write("category\tfile\tpages\tsize_bytes\tfirst_page_title\n")
         for r in rows:
             f.write(f"{r['cat']}\t{r['stem']}.pdf\t{r['pages']}\t{r['size']}\t{r['head']}\n")
@@ -98,7 +101,7 @@ def main():
             if note:
                 lines.append(f"  > {note}")
         lines.append("")
-    with open(os.path.join(ROOT, "CATALOG.md"), "w") as f:
+    with open(os.path.join(OUT, "CATALOG.md"), "w") as f:
         f.write("\n".join(lines))
     print(f"wrote CATALOG.md / papers_index.tsv with {len(rows)} papers")
     for r in rows:
