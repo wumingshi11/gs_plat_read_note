@@ -61,4 +61,14 @@ We also have made the mathematical supplement, with conventions and derivations,
 }
 ```
 
+## 论文资料库
+
+本仓库的 [`papers/`](papers/) 目录收录了 30 篇 3DGS 相关论文 PDF，并附有导读：
+
+- **原始论文**：3D Gaussian Splatting for Real-Time Radiance Field Rendering (SIGGRAPH 2023)
+- **公式推导**：Mathematical Supplement for the gsplat Library —— 与 `gsplat/` 源码逐式对应，前向投影 + 反向梯度完整推导
+- **配套论文**：EWA Splatting（投影公式出处）、误差分析与最优投影、抗混叠、压缩、动态与生成等
+
+详见 [`papers/README.md`](papers/README.md)，完整清单见 [`papers/CATALOG.md`](papers/CATALOG.md)。
+
 We welcome contributions of any kind and are open to feedback, bug-reports, and improvements to help expand the capabilities of this software. Please check [docs/DEV.md](docs/DEV.md) for more info about development.
