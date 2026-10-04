@@ -12,7 +12,7 @@
   > 《Recent Advances in 3D Gaussian Splatting》综述 (Computational Visual Media), 分类梳理加速/压缩/动态/生成等方向。
 - **`gsplat-open-source-library.pdf`** (17 页, 0.5 MB)  
   gsplat: An Open-Source Library for Gaussian Splatting | gsplat: An Open-Source Library for Gaussian Splatting | Vickie Ye1,† vye@berkeley.edu | Ruilon  
-  > gsplat 库官方论文 (arXiv 2409.06765), 含 benchmark、实现细节与数学约定。仓库代码见同级 gsplat/ 目录。
+  > gsplat 库官方论文 (arXiv 2409.06765), 含 benchmark、实现细节与数学约定。仓库代码见本仓库 gsplat/ 目录。
 
 ## 02-公式推导
 

@@ -59,9 +59,9 @@ papers/
 
 ## 三、对应源码
 
-本仓库根目录的 `gsplat/` 即 [nerfstudio-project/gsplat](https://github.com/nerfstudio-project/gsplat) 的阅读笔记版本，对应论文是 `01-核心论文/gsplat-open-source-library.pdf`（arXiv [2409.06765](https://arxiv.org/abs/2409.06765)）。
+本仓库根目录的 `gsplat/` 是 [nerfstudio-project/gsplat](https://github.com/nerfstudio-project/gsplat) 的阅读笔记版（早期版本，未包含后续的 2DGS / 3DGUT / 压缩等模块），对应论文是 `01-核心论文/gsplat-open-source-library.pdf`（arXiv [2409.06765](https://arxiv.org/abs/2409.06765)）。
 
-**读代码路线**（对照本仓库当前版本的目录结构）：
+**读代码路线**（路径相对仓库根目录）：
 
 | 目的 | 文件 |
 |---|---|

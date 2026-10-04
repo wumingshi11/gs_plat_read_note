@@ -17,7 +17,7 @@ OUT = os.path.dirname(os.path.abspath(__file__))
 NOTES = {
     "3dgs-original-Kerbl2023-SIGGRAPH": "原始论文, SIGGRAPH 2023 最佳论文。核心: 3D 高斯显式表示 + 可微 tile 光栅化 + 自适应密度控制。**公式推导在补充材料里** (见 02-公式推导)。",
     "gsplat-math-supplement": "★ 你要的「公式推导补充 PDF」。Vickie Ye (UC Berkeley) 为 gsplat 写的数学补充: 第 2 节投影/光栅化前向 (式(1)-(4) 即 3D 协方差 → 2D 协方差 Σ'=J W Σ Wᵀ Jᵀ), 第 3 节完整反向传播梯度推导 (对 μ, Σ, 四元数, 尺度, 不透明度, SH 系数)。6 页纯推导, 是最权威的官方级推导文档。",
-    "gsplat-open-source-library": "gsplat 库官方论文 (arXiv 2409.06765), 含 benchmark、实现细节与数学约定。仓库代码见同级 gsplat/ 目录。",
+    "gsplat-open-source-library": "gsplat 库官方论文 (arXiv 2409.06765), 含 benchmark、实现细节与数学约定。仓库代码见本仓库 gsplat/ 目录。",
     "3dgs-error-analysis-optimal-projection": "对 3DGS 投影近似的误差分析, 给出最优投影策略 (改进 EWA 近似的推导)。",
     "does-3dgs-need-accurate-volumetric-rendering": "系统梳理 3DGS 相对体渲染理论的各项近似假设, 逐条做数学分析 (Eurographics 2025)。",
     "EWA-splatting-Zwicker2002-TVCG": "EWA Splatting 原始论文 (MERL TR2002-49 / IEEE TVCG 2002)。3DGS 投影公式 Σ'=JWΣWᵀJᵀ 与雅可比 J 的出处, 即式(3)(4) 的源头。注意: arXiv 上的 cs/0108002 实际是另一篇论文, 已核实并弃用。",
