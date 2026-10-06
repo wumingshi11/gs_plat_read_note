@@ -69,6 +69,10 @@ We also have made the mathematical supplement, with conventions and derivations,
 - **公式推导**：Mathematical Supplement for the gsplat Library —— 与 `gsplat/` 源码逐式对应，前向投影 + 反向梯度完整推导
 - **配套论文**：EWA Splatting（投影公式出处）、误差分析与最优投影、抗混叠、压缩、动态与生成等
 
+另有一份自撰推导笔记 [`papers/02-公式推导/notes-densification-criterion.md`](papers/02-公式推导/notes-densification-criterion.md)：
+补充材料只讲前向投影与反传（式 1–31），不涉及高斯增删；这份笔记补上稠密化判据的本质
+（混合模型的模型选择问题）、为什么用屏幕位置梯度当代理，以及该代理的三个内生缺陷。
+
 详见 [`papers/README.md`](papers/README.md)，完整清单见 [`papers/CATALOG.md`](papers/CATALOG.md)。
 
 We welcome contributions of any kind and are open to feedback, bug-reports, and improvements to help expand the capabilities of this software. Please check [docs/DEV.md](docs/DEV.md) for more info about development.
