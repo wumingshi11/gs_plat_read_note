@@ -122,6 +122,29 @@ def check_polynomial_basis():
     return worst < 1e-9
 
 
+
+def check_initialisation_roundtrip():
+    """RGB2SH is the exact inverse of the forward constant term.
+
+    gaussian_model.py initialises k_0 = (rgb - 0.5)/C0 with all higher-order
+    coefficients zero, so the model reproduces the SfM reference colour
+    exactly at start-up -- no fitting involved.
+    """
+    def rgb2sh(rgb):
+        return (rgb - 0.5) / SH_C0
+
+    def sh2rgb(sh):
+        return sh * SH_C0 + 0.5
+
+    rng = np.random.default_rng(11)
+    rgb = rng.random((2000, 3))
+    worst = float(np.abs(sh2rgb(rgb2sh(rgb)) - rgb).max())
+    good = worst < 1e-12
+    print(f"5) RGB2SH / SH2RGB round-trip       -> {good}"
+          f"   (max residual {worst:.2e})")
+    return good
+
+
 def main():
     rng = np.random.default_rng(0)
     eps = 1e-7
@@ -168,6 +191,9 @@ def main():
 
     # --- 4. the features really are homogeneous polynomials of degree l ---
     ok &= check_polynomial_basis()
+
+    # --- 5. initialisation reproduces the SfM colour exactly ---
+    ok &= check_initialisation_roundtrip()
 
     print("\nALL CHECKS PASSED" if ok else "\nSOME CHECKS FAILED")
     raise SystemExit(0 if ok else 1)

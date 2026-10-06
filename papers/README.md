@@ -79,7 +79,7 @@ papers/
 **可运行验证脚本**（同目录）：
 
 - `verify_backward_jacobian.py` — 验证 `backward.cu` 手工展开的 3×2 矩阵是补充材料式 (3) 投影雅可比的转置
-- `verify_sh_color_grad.py` — 验证 SH 对系数线性（$\partial c/\partial k_l = Y_l$）、单位化雅可比为 $(\mathbf{I}-\hat d\hat d^\top)/\lVert v\rVert$、径向分量被抹掉、16 个特征均为齐次多项式
+- `verify_sh_color_grad.py` — 验证 SH 对系数线性（$\partial c/\partial k_l = Y_l$）、单位化雅可比为 $(\mathbf{I}-\hat d\hat d^\top)/\lVert v\rVert$、径向分量被抹掉、16 个特征均为齐次多项式、初始化的 RGB↔SH 精确往返
 
 ## 三、对应源码
 
