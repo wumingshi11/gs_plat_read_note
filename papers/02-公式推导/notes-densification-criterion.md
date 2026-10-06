@@ -258,6 +258,139 @@ if iteration > opt.densify_from_iter and iteration % opt.densification_interval 
 
 ---
 
+## 5.5 插问：颜色为什么可导
+
+这个问题值得单独回答，因为**颜色的可导性来源和位置/协方差完全不同** —— 后者靠手工推导雅可比（式 3、§3.4），前者靠**参数化本身就是初等函数**，压根不需要特殊处理。
+
+### 5.5.1 颜色模型：一个方向的多项式，系数是唯一可学参数
+
+每个高斯存 $3 \times 16 = 48$ 个 SH 系数（4 阶 × RGB 3 通道）。**这是唯一没有激活函数的参数**：
+
+| 参数 | 激活 | 来源 |
+|---|---|---|
+| 尺度 $s$ | $\exp$ | `scaling_activation = torch.exp` |
+| 旋转 $q$ | 单位化 | `rotation_activation = F.normalize` |
+| 不透明度 $\alpha$ | $\sigma$（sigmoid）| `opacity_activation = torch.sigmoid` |
+| **颜色（SH 系数）** | **无**（恒等）| 存的就是系数本身 |
+
+因为没有激活，颜色可以取任意实数 —— 负值只能靠前向的 clamp 兜住（见 §5.5.2a）。前向求值（`forward.cu` 的 `computeColorFromSH`）：
+
+```cuda
+glm::vec3 dir = pos - campos;  dir = dir / glm::length(dir);   // 方向：从相机指向高斯
+glm::vec3 result = SH_C0 * sh[0];
+if (deg > 0) {
+    result = result - SH_C1*y*sh[1] + SH_C1*z*sh[2] - SH_C1*x*sh[3];
+    ...
+}
+result += 0.5f;
+clamped[...] = (result < 0);
+return glm::max(result, 0.0f);
+```
+
+用符号写就是
+
+$$c_n = \mathrm{clamp}_{[0,\infty)}\Big(0.5 + \sum_{l=0}^{L}\sum_{m=-l}^{l} Y_{lm}(\hat{d}_n)\, k_{nlm}\Big),\qquad \hat{d}_n = \frac{\mu_n - o}{\lVert \mu_n - o\rVert}$$
+
+（$k$ 是学习到的 SH 系数，$o$ 是相机位置，$Y_{lm}$ 是实球谐基。）
+
+**可导性来自三个结构性质：**
+
+| 性质 | 后果 |
+|---|---|
+| $Y_{lm}(\hat d)$ 是 $\hat d$ 分量的**多项式**（最高 3 次）| 对 $\hat d$ 的偏导是初等式，`backward.cu` 里的 `dRGBdx/dy/dz` 就是这些多项式 |
+| $c_n$ 对系数 $k_{nlm}$ **线性** | $\partial c_n/\partial k_{nlm} = Y_{lm}(\hat d)$，无需推导 |
+| α 混合对颜色**线性**：$C = \sum_n c_n \alpha_n T_n$ | $\partial C/\partial c_n = \alpha_n T_n$，就是补充材料式 (16) |
+
+**结果**：整张图像 $C$ 是 SH 系数的**低次多项式** —— 没有神经网络、没有体渲染积分、没有采样。求导是纯代数操作，精确且廉价。**这是 3DGS 相比 NeRF 在可导性上的核心优势**：NeRF 的 MLP 靠 autograd 反传，3DGS 的颜色是显式解析式。
+
+### 5.5.2 两处不光滑，各有一处分段处理
+
+**(a) clamp 到非负，梯度按 PyTorch ReLU 约定置零。** 前向把决定记录下来：
+
+```cuda
+clamped[3*idx + ch] = (result < 0);
+```
+
+反传据此切断该通道：
+
+```cuda
+// Use PyTorch rule for clamping: if clamping was applied, gradient becomes 0.
+glm::vec3 dL_dRGB = dL_dcolor[idx];
+dL_dRGB.x *= clamped[3*idx + 0] ? 0 : 1;
+```
+
+**为什么必须这么做**：一旦某通道被夹到 0，`∂c/∂k` 在数学上为零（输出不再随系数变化）。若仍把残差回传，优化器会把系数往错误方向推，越推越被夹住 —— 这是饱和死区。置零等于承认"这个方向暂时没有信息"。
+
+**(b) 方向单位化，梯度按投影算子回传。**
+
+$$\frac{\partial \hat d}{\partial d} = \frac{\mathbf{I} - \hat d\hat d^\top}{\lVert d\rVert}$$
+
+单位化的雅可比是**去掉径向分量**的投影（沿方向缩放不改变 $\hat d$），实现为 `auxiliary.h` 的 `dnormvdv`：
+
+```cuda
+float sum2 = dot(v,v);
+float invsum32 = 1.0f / sqrt(sum2*sum2*sum2);
+out.x = ((+sum2 - v.x*v.x)*dv.x - v.y*v.x*dv.y - v.z*v.x*dv.z) * invsum32;
+```
+
+### 5.5.3 ⚠️ 一个容易猜错的点：方向的梯度**确实**回传到了位置
+
+我一开始以为方向是"当作常数、梯度截断"—— 因为视觉上它由相机位置定义，像外部输入。**代码明确否定了这个猜测**（`backward.cu` 结尾的注释）：
+
+```cuda
+// The view direction is an input to the computation. View direction
+// is influenced by the Gaussian's mean, so SHs gradients
+// must propagate back into 3D position.
+glm::vec3 dL_ddir(dot(dRGBdx, dL_dRGB), dot(dRGBdy, dL_dRGB), dot(dRGBdz, dL_dRGB));
+float3 dL_dmean = dnormvdv(dir_orig, dL_ddir);
+dL_dmeans[idx] += glm::vec3(dL_dmean.x, dL_dmean.y, dL_dmean.z);
+```
+
+所以 3D 位置 μ 的**总**梯度有**两条通路**叠加：
+
+| 通路 | 来源 | 是否进稠密化判据 |
+|---|---|---|
+| 屏幕位置：$\partial L/\partial\mu' \cdot J^\top$ | 几何（覆盖哪里）| ✅ **是** |
+| 视角相关颜色：$\mathrm{dnormvdv}\cdot\partial L/\partial\hat d$ | 外观（从哪个角度看）| ❌ 否（走了另一个聚合器 `dL_dmeans`）|
+
+这印证了 §4 的论点：**稠密化只听"几何分配"那一支**，而"移动改变观察方向"这一支虽然后向传播时存在，但不参与增删决策 —— 否则反射高光会让球不断被克隆。
+
+### 5.5.4 SH 的两类优化问题（论文自己也承认）
+
+**(a) 高阶系数需要足够的角向信息。** 论文 Sec. 7.1：
+
+> SH coefficient optimization is sensitive to the lack of angular information.
+
+高阶 $Y_{lm}$ 的系数只在多个视角下才能被约束；视角少时它们会去拟合噪声。**对策是渐进升阶**（`train.py`）：
+
+```python
+# Every 1000 its we increase the levels of SH up to a maximum degree
+if iteration % 1000 == 0:
+    gaussians.oneupSHdegree()
+```
+
+**(b) SH 的取值区间受限，亮色要靠高阶项硬撑。** 0 阶项 $Y_{00} = \tfrac{1}{2}\sqrt{1/\pi} \approx 0.2821$ 是个**固定常数**，而 $c = 0.5 + 0.2821\,k_0 + (\text{高阶})$。要让某通道饱和到 1，需要 $\sum Y_{lm}k_{lm} \ge 0.5$：
+
+| 只用 $k_0$ | 需要的 $k_0$ |
+|---|---|
+| 输出 0.5（中性灰）| 0 |
+| 输出 1.0（饱和）| $\approx 1.77$ |
+
+高阶项把可用区间略微拓宽，但仍然**无法表示任意亮度**。这正是 clamp 频繁触发、进而导致 (a) 里梯度被置零的根源之一 —— 两个问题是耦合的。
+
+### 5.5.5 小结：为什么"颜色可导"这件事不平凡
+
+| 对比 | NeRF | 3DGS |
+|---|---|---|
+| 颜色函数 | MLP（多层非线性）| SH 多项式（显式解析）|
+| 求导方式 | autograd 反传整张网络 | 手工初等偏导（`dRGBdx/dy/dz`）|
+| 参数规模 | 网络权重 | 每高斯 48 个系数 |
+| 不光滑点 | 采样、位置编码 | clamp + 方向单位化（均有分段处理）|
+
+**一句话**：颜色可导，是因为它被**故意参数化成"方向的多项式 + 线性混合"** —— 把可导性设计进了表示里，而不是靠自动微分去处理一个复杂函数。代价是表达能力受限（§5.5.4b），收益是求导精确、廉价、且梯度有明确物理含义。
+
+---
+
 ## 6. 三个内生缺陷（可从权重推导直接看出）
 
 ### 6.1 权重峰值在 $1\sigma$，中心贡献为零
