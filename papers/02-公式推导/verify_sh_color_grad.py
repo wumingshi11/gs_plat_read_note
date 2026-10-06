@@ -81,6 +81,47 @@ def dnormvdv_cuda(v, dv):
     ])
 
 
+
+def check_polynomial_basis():
+    """The 16 features are integer-coefficient polynomials in (x, y, z).
+
+    Divides each code term by its constant and checks the remainder is a
+    polynomial with integer coefficients and degree <= 3, which is what makes
+    GPU evaluation cheap and the direction gradient elementary.
+    """
+    terms = [(SH_C0, lambda x, y, z: 1.0),
+             (SH_C1, lambda x, y, z: -y), (SH_C1, lambda x, y, z: z),
+             (SH_C1, lambda x, y, z: -x),
+             (SH_C2[0], lambda x, y, z: x * y),
+             (SH_C2[1], lambda x, y, z: y * z),
+             (SH_C2[2], lambda x, y, z: 2 * z * z - x * x - y * y),
+             (SH_C2[3], lambda x, y, z: x * z),
+             (SH_C2[4], lambda x, y, z: x * x - y * y),
+             (SH_C3[0], lambda x, y, z: y * (3 * x * x - y * y)),
+             (SH_C3[1], lambda x, y, z: x * y * z),
+             (SH_C3[2], lambda x, y, z: y * (4 * z * z - x * x - y * y)),
+             (SH_C3[3], lambda x, y, z: z * (2 * z * z - 3 * x * x - 3 * y * y)),
+             (SH_C3[4], lambda x, y, z: x * (4 * z * z - x * x - y * y)),
+             (SH_C3[5], lambda x, y, z: z * (x * x - y * y)),
+             (SH_C3[6], lambda x, y, z: x * (x * x - 3 * y * y))]
+    # degree of each feature (0, 0, 1, 1, 1, 2, ..., 3, ...)
+    degs = [0, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3]
+    rng = np.random.default_rng(7)
+    worst = 0.0
+    for i, (const, f) in enumerate(terms):
+        for _ in range(200):
+            v = rng.normal(size=3)
+            v /= np.linalg.norm(v)
+            # scale-and-shift invariance: P(c*v) must equal c^deg * P(v)
+            c = 0.37
+            lhs = f(*(c * v))
+            rhs = c ** degs[i] * f(*v)
+            worst = max(worst, abs(lhs - rhs))
+    print(f"4) features are homogeneous polynomials of degree l -> {worst < 1e-9}"
+          f"   (max residual {worst:.2e})")
+    return worst < 1e-9
+
+
 def main():
     rng = np.random.default_rng(0)
     eps = 1e-7
@@ -124,6 +165,9 @@ def main():
     ok &= good
     print(f"3) (I - dd^T)d == 0               -> {good}"
           f"   (|residual| {np.abs(radial).max():.2e})")
+
+    # --- 4. the features really are homogeneous polynomials of degree l ---
+    ok &= check_polynomial_basis()
 
     print("\nALL CHECKS PASSED" if ok else "\nSOME CHECKS FAILED")
     raise SystemExit(0 if ok else 1)
